@@ -1,0 +1,67 @@
+[
+  {
+    "id": "v1",
+    "name": "Dr. Sarah Smith",
+    "skills": [
+      "medical",
+      "general"
+    ],
+    "location": "Downtown",
+    "trust_score": 9.899999999999999,
+    "available": true,
+    "active_task": null,
+    "tasks_completed": 14
+  },
+  {
+    "id": "v2",
+    "name": "Ravi Kumar",
+    "skills": [
+      "food",
+      "shelter"
+    ],
+    "location": "East Side",
+    "trust_score": 8.8,
+    "available": true,
+    "active_task": null,
+    "tasks_completed": 5
+  },
+  {
+    "id": "v3",
+    "name": "Alisha P.",
+    "skills": [
+      "water",
+      "food"
+    ],
+    "location": "Uptown",
+    "trust_score": 10,
+    "available": true,
+    "active_task": null,
+    "tasks_completed": 25
+  },
+  {
+    "id": "v4",
+    "name": "John Driver",
+    "skills": [
+      "shelter",
+      "general"
+    ],
+    "location": "West End",
+    "trust_score": 8,
+    "available": true,
+    "active_task": null,
+    "tasks_completed": 3
+  },
+  {
+    "id": "v5",
+    "name": "Priya Mehta",
+    "skills": [
+      "medical",
+      "water"
+    ],
+    "location": "South Zone",
+    "trust_score": 9.2,
+    "available": true,
+    "active_task": null,
+    "tasks_completed": 8
+  }
+]
