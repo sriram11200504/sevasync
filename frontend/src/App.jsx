@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth } from './firebase.js';
 import './App.css';
 
-const API = 'http://localhost:5000/api';
+const API = 'https://sevasync-backend-h2gh.onrender.com/api';
 
 const NEED_COLORS = {
   food: '#f59e0b',
@@ -172,13 +174,50 @@ function LiveFeed({ requests, onAllocate }) {
 
 // ── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [isAdmin, setIsAdmin]       = useState(false);
+  const [userToken, setUserToken]   = useState(() => localStorage.getItem('adminToken') || null);
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPass, setLoginPass]   = useState('');
+  const [loginErr, setLoginErr]     = useState('');
   const [requests, setRequests]     = useState([]);
   const [volunteers, setVolunteers] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [alert, setAlert]           = useState(null);
 
+  // Set up axial interceptor for the token
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(config => {
+      if (userToken) {
+        config.headers.Authorization = `Bearer ${userToken}`;
+      }
+      return config;
+    });
+    return () => axios.interceptors.request.eject(interceptor);
+  }, [userToken]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginErr('');
+    try {
+      const fbUser = await signInWithEmailAndPassword(auth, loginEmail, loginPass);
+      const token = await fbUser.user.getIdToken();
+      setUserToken(token);
+      localStorage.setItem('adminToken', token);
+    } catch (err) {
+      console.error("Firebase Login Error:", err.code, err.message);
+      setLoginErr(`Login failed: ${err.message}`);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setUserToken(null);
+    localStorage.removeItem('adminToken');
+    setRequests([]);
+    setVolunteers([]);
+  };
+
   const fetchAll = useCallback(async () => {
+    if (!userToken) return;
     try {
       const [rRes, vRes] = await Promise.all([
         axios.get(`${API}/requests`),
@@ -189,14 +228,20 @@ export default function App() {
       setLoading(false);
     } catch (err) {
       console.error('Fetch failed:', err.message);
+      setLoading(false);
+      
+      // Force clear state on ANY fetch error to break the loop!
+      setUserToken(null);
+      localStorage.removeItem('adminToken');
     }
-  }, []);
+  }, [userToken]);
 
   useEffect(() => {
+    if (!userToken) return;
     fetchAll();
     const t = setInterval(fetchAll, 4000);
     return () => clearInterval(t);
-  }, [fetchAll]);
+  }, [fetchAll, userToken]);
 
   const handleAllocate = async (id) => {
     try {
@@ -237,17 +282,36 @@ export default function App() {
   const rescued    = completed.reduce((s, r) => s + (r.people_count || 0), 0);
   const freeVols   = volunteers.filter(v => v.available).length;
 
-  if (!isAdmin) {
+  if (!userToken) {
     return (
       <div className="login-screen">
-        <div className="login-box">
+        <form className="login-box" onSubmit={handleLogin}>
           <div className="login-icon">🛡️</div>
-          <h2>SevaSync</h2>
-          <p>Admin Command Center</p>
-          <button className="btn-primary login-btn" onClick={() => setIsAdmin(true)}>
-            Login as Admin
+          <h2>SevaSync Admin</h2>
+          <p>Login with strict admin credentials to access the command center.</p>
+          {loginErr && <div className="toast toast-error" style={{position: 'static', margin: '1rem 0'}}>{loginErr}</div>}
+          <input 
+            type="email" 
+            className="input-sm" 
+            placeholder="Admin Email" 
+            value={loginEmail} 
+            onChange={e => setLoginEmail(e.target.value)} 
+            required 
+            style={{ width: '100%', marginBottom: '1rem' }}
+          />
+          <input 
+            type="password" 
+            className="input-sm" 
+            placeholder="Password" 
+            value={loginPass} 
+            onChange={e => setLoginPass(e.target.value)} 
+            required 
+            style={{ width: '100%', marginBottom: '1.5rem' }}
+          />
+          <button type="submit" className="btn-primary login-btn" style={{ width: '100%' }}>
+            Secure Login
           </button>
-        </div>
+        </form>
       </div>
     );
   }
@@ -267,7 +331,7 @@ export default function App() {
           </div>
         </div>
         <div className="topbar-right">
-          <button className="btn-logout" onClick={() => setIsAdmin(false)}>Logout</button>
+          <button className="btn-logout" onClick={handleLogout}>Logout</button>
         </div>
         <div className="kpi-row">
           <div className="kpi">

@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { DB } from '../db/firebase.js';
 import { allocateBestVolunteer, freeVolunteer } from '../engine/allocate.js';
+import { requireAdmin, requireVolunteer } from '../middleware/auth.js';
 
 const router = Router();
 
-// GET /api/requests — All requests, newest first
+// GET /api/requests — Fetch all open alerts (public, so Mobile and Admin can see them)
 router.get('/', async (req, res) => {
   try {
     const data = await DB.getRequests();
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/requests/:id/allocate — Admin dispatches AI allocation
-router.post('/:id/allocate', async (req, res) => {
+router.post('/:id/allocate', requireAdmin, async (req, res) => {
   try {
     const request = await DB.getRequest(req.params.id);
     if (!request) return res.status(404).json({ error: 'Request not found' });
@@ -23,7 +24,8 @@ router.post('/:id/allocate', async (req, res) => {
       return res.status(400).json({ error: `Request is already ${request.status}` });
     }
 
-    const volunteer = allocateBestVolunteer(request);
+    const { allocateWithAI } = await import('../engine/allocate.js');
+    const volunteer = await allocateWithAI(request);
     if (!volunteer) {
       return res.status(400).json({ error: 'No available volunteers match this need' });
     }
@@ -42,7 +44,7 @@ router.post('/:id/allocate', async (req, res) => {
   }
 });
 
-// PUT /api/requests/:id/status — Volunteer updates status from mobile
+// PUT /api/requests/:id/status — Volunteer updates status
 router.put('/:id/status', async (req, res) => {
   try {
     const { status, notes } = req.body;

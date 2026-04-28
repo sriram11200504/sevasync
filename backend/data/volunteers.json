@@ -7,10 +7,10 @@
       "general"
     ],
     "location": "Downtown",
-    "trust_score": 9.899999999999999,
+    "trust_score": 10,
     "available": true,
     "active_task": null,
-    "tasks_completed": 14
+    "tasks_completed": 18
   },
   {
     "id": "v2",
@@ -20,10 +20,10 @@
       "shelter"
     ],
     "location": "East Side",
-    "trust_score": 8.8,
+    "trust_score": 9.2,
     "available": true,
     "active_task": null,
-    "tasks_completed": 5
+    "tasks_completed": 7
   },
   {
     "id": "v3",
@@ -33,10 +33,10 @@
       "food"
     ],
     "location": "Uptown",
-    "trust_score": 10,
+    "trust_score": 9.2,
     "available": true,
     "active_task": null,
-    "tasks_completed": 25
+    "tasks_completed": 28
   },
   {
     "id": "v4",
@@ -46,10 +46,10 @@
       "general"
     ],
     "location": "West End",
-    "trust_score": 8,
-    "available": true,
-    "active_task": null,
-    "tasks_completed": 3
+    "trust_score": 8.2,
+    "available": false,
+    "active_task": "zU7TYFluT1gnNM91iH9T",
+    "tasks_completed": 4
   },
   {
     "id": "v5",
@@ -60,8 +60,21 @@
     ],
     "location": "South Zone",
     "trust_score": 9.2,
+    "available": false,
+    "active_task": "zU7TYFluT1gnNM91iH9T",
+    "tasks_completed": 8
+  },
+  {
+    "id": "v1776917316738",
+    "name": "meghana",
+    "skills": [
+      "food",
+      "shelter"
+    ],
+    "location": "mangalagiri",
+    "trust_score": 5,
     "available": true,
     "active_task": null,
-    "tasks_completed": 8
+    "tasks_completed": 0
   }
 ]

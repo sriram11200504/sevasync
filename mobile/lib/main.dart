@@ -8,7 +8,9 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:geolocator/geolocator.dart';
 
 // ─── Config ────────────────────────────────────────────────────────────────
-const String kApiBase = 'http://localhost:5000/api';
+const String kApiBase = 'https://sevasync-backend-h2gh.onrender.com/api';
+
+
 
 // ─── App Root ───────────────────────────────────────────────────────────────
 void main() => runApp(const SevaSyncApp());
@@ -1266,6 +1268,7 @@ class _InputSheet extends StatelessWidget {
 
 
 void _snack(BuildContext context, String msg, {bool isError = false}) {
+  if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
     content: Text(msg),
     backgroundColor: isError ? kRed : kGreen,

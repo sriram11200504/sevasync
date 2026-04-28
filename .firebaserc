@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "sevasync-e053b"
+  },
+  "targets": {
+    "sevasync-e053b": {
+      "hosting": {
+        "dashboard": [
+          "sevasync-e053b"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

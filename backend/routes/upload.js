@@ -50,10 +50,10 @@ router.post('/image', upload.single('image'), async (req, res) => {
 
     const ai = getAI();
 
-    console.log(`🖼️  Processing image via Gemini Vision (${req.file.originalname}, ${Math.round(req.file.size/1024)}KB)...`);
+    console.log(`🖼️  Processing image via Gemini Vision (${req.file.originalname}, ${Math.round(req.file.size / 1024)}KB)...`);
 
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-1.5-flash',
       contents: [
         {
           parts: [
@@ -73,16 +73,17 @@ ${GEMINI_SYSTEM_PROMPT}`
       ]
     });
 
-    const rawText = result.text.trim().replace(/^```json\s*/, '').replace(/```$/, '').trim();
+    const response = await result.response;
+    const rawText = response.text().trim().replace(/^```json\s*/, '').replace(/```$/, '').trim();
     const parsed = JSON.parse(rawText);
     console.log('✅ Gemini Vision result:', parsed);
 
     const saved = await DB.addRequest({
       ...parsed,
-      need_type: ['food','medical','shelter','water','other'].includes(parsed.need_type) ? parsed.need_type : 'other',
+      need_type: ['food', 'medical', 'shelter', 'water', 'other'].includes(parsed.need_type) ? parsed.need_type : 'other',
       location: parsed.location || 'Not Specified',
       people_count: Math.max(1, parseInt(parsed.people_count) || 5),
-      urgency: ['low','medium','high'].includes(parsed.urgency) ? parsed.urgency : 'medium',
+      urgency: ['low', 'medium', 'high'].includes(parsed.urgency) ? parsed.urgency : 'medium',
       source,
       status: 'pending',
       input_type: 'image',
@@ -134,10 +135,10 @@ router.post('/excel', upload.single('excel'), async (req, res) => {
 
         const saved = await DB.addRequest({
           ...parsed,
-          need_type: ['food','medical','shelter','water','other'].includes(parsed.need_type) ? parsed.need_type : 'other',
+          need_type: ['food', 'medical', 'shelter', 'water', 'other'].includes(parsed.need_type) ? parsed.need_type : 'other',
           location: parsed.location || 'Not Specified',
           people_count: Math.max(1, parseInt(parsed.people_count) || 5),
-          urgency: ['low','medium','high'].includes(parsed.urgency) ? parsed.urgency : 'medium',
+          urgency: ['low', 'medium', 'high'].includes(parsed.urgency) ? parsed.urgency : 'medium',
           source,
           status: 'pending',
           input_type: 'excel',

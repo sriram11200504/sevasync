@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { VOLUNTEERS, saveVolunteers } from '../engine/allocate.js';
+import { requireAdmin } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -18,8 +19,8 @@ router.get('/', (req, res) => {
   res.json({ success: true, data });
 });
 
-// POST /api/volunteers (Admin)
-router.post('/', (req, res) => {
+// POST /api/volunteers (Admin only)
+router.post('/', requireAdmin, (req, res) => {
   const { name, skills, location } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
   
@@ -38,8 +39,8 @@ router.post('/', (req, res) => {
   res.json({ success: true, volunteer: newVol });
 });
 
-// DELETE /api/volunteers/:id (Admin)
-router.delete('/:id', (req, res) => {
+// DELETE /api/volunteers/:id (Admin only)
+router.delete('/:id', requireAdmin, (req, res) => {
   const idx = VOLUNTEERS.findIndex(v => v.id === req.params.id);
   if (idx !== -1) {
     VOLUNTEERS.splice(idx, 1);

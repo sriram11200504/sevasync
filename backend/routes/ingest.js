@@ -1,9 +1,21 @@
 import { Router } from 'express';
 import { GoogleGenAI } from '@google/genai';
+import { rateLimit } from 'express-rate-limit';
 import dotenv from 'dotenv';
 dotenv.config();
 
 const router = Router();
+
+// Strict per-route rate limiter for beneficiary submissions: 5 per minute per IP
+const ingestLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Too many submissions. Please wait a minute before trying again.' },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+router.use(ingestLimiter);
 
 // --- Intelligent Fallback Parser (used ONLY if no Gemini key) ---
 function fallbackParse(text) {
@@ -65,8 +77,16 @@ function fallbackParse(text) {
 router.post('/', async (req, res) => {
   try {
     const { text, source = 'public', translate, original_language } = req.body;
+
+    // --- Input Validation ---
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'text is required' });
+    }
+    if (text.trim().length < 10) {
+      return res.status(400).json({ error: 'Report too short. Please provide more details (at least 10 characters).' });
+    }
+    if (text.trim().length > 5000) {
+      return res.status(400).json({ error: 'Report too long (max 5000 characters).' });
     }
 
     // Detect if translation is needed
@@ -85,36 +105,37 @@ router.post('/', async (req, res) => {
         // Instantiate fresh with current key — avoids module-load timing issue
         const ai = new GoogleGenAI({ apiKey });
 
-        const prompt = `You are an AI assistant for SevaSync, a humanitarian crisis coordination system.
-${needsTranslation ? `IMPORTANT: The following text may be in a non-English language${original_language ? ` (${original_language})` : ''}. First translate it to English, then extract the structured data.` : ''}
-Analyze the following field report text and extract EXACTLY this JSON structure:
+        const prompt = `You are a Lead Dispatcher for SevaSync.
+${needsTranslation ? `IMPORTANT: The input is in ${original_language || 'a foreign language'}. Translate it to English first.` : ''}
+Analyze this report and output ONLY JSON:
 {
-  "need_type": "<one of: food, medical, shelter, water, other>",
-  "location": "<exact location/city/area name from the text>",
-  "people_count": <integer, estimate 5 if not mentioned>,
-  "urgency": "<one of: low, medium, high>",
-  "description": "<one clear sentence IN ENGLISH summarizing the need>",
-  "confidence_score": <float 0.0 to 1.0>,
-  "missing_fields": ["<fields not mentioned in text>"]
+  "need_type": "<food|medical|shelter|water|other>",
+  "location": "<CITY or AREA name only. If no specific place is mentioned, return 'Not Specified'>",
+  "people_count": <int, default 5>,
+  "urgency": "<low|medium|high>",
+  "description": "<One sentence summary of the NEED in English>",
+  "confidence_score": <0.0 to 1.0>,
+  "missing_fields": []
 }
 
-Field report: "${text}"
+Report Text: "${text}"
 
-Rules:
-- For location: extract ANY place name (city, village, colony, area, district) even if phrased as "people of X" or "residents of X"
-- For urgency: high if words like urgent/emergency/critical/dying/immediately, low if calm/stable
-- The description field MUST always be in English regardless of input language
-- Respond ONLY with valid JSON. No markdown. No explanation.`;
+STRICT RULES:
+1. "location" must NOT contain descriptions of needs. It must only be a proper noun (City, District, Area).
+2. If the text says "People of Vijayawada", the location is "Vijayawada".
+3. Use high urgency ONLY for medical or life-threatening situations.
+4. Respond ONLY with raw JSON.`;
 
         const result = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-1.5-flash',
           contents: prompt,
           config: { responseMimeType: 'application/json' }
         });
 
-        const rawText = result.text.trim().replace(/^```json\s*/, '').replace(/```$/, '').trim();
+        const response = await result.response;
+        const rawText = response.text().trim().replace(/^```json\s*/, '').replace(/```$/, '').trim();
         parsed = JSON.parse(rawText);
-        console.log('✅ Gemini parsed successfully:', JSON.stringify(parsed, null, 2));
+        console.log('✅ Gemini parsed successfully');
       } catch (aiErr) {
         console.error('❌ Gemini call failed:', aiErr.message);
         console.log('↩️  Falling back to regex parser');
@@ -139,7 +160,35 @@ Rules:
       createdAt: new Date().toISOString()
     };
 
+    // Boost confidence based on source trust
+    const trustBoost = { ngo: 0.15, volunteer: 0.10, public: 0 };
+    sanitized.confidence_score = Math.min(1, sanitized.confidence_score + (trustBoost[source] || 0));
+
+    // --- Duplicate Detection ---
     const { DB } = await import('../db/firebase.js');
+    const existing = await DB.getRequests();
+    const cutoff = Date.now() - 30 * 60 * 1000; // 30 minutes
+
+    const duplicate = existing.find(r => {
+      const sameType = r.need_type === sanitized.need_type;
+      const sameLocation = r.location && sanitized.location &&
+        r.location.toLowerCase().trim() === sanitized.location.toLowerCase().trim();
+      const recent = new Date(r.createdAt).getTime() > cutoff;
+      return sameType && sameLocation && recent && r.status !== 'completed';
+    });
+
+    if (duplicate) {
+      // Merge: increment people count on the existing request instead of creating a new one
+      const mergedCount = (duplicate.people_count || 0) + sanitized.people_count;
+      await DB.updateRequest(duplicate.id, {
+        people_count: mergedCount,
+        updatedAt: new Date().toISOString()
+      });
+      const updated = await DB.getRequest(duplicate.id);
+      console.log(`🔀 Duplicate merged into ${duplicate.id} — people_count now ${mergedCount}`);
+      return res.json({ success: true, merged: true, data: updated });
+    }
+
     const saved = await DB.addRequest(sanitized);
     res.json({ success: true, data: saved });
   } catch (err) {

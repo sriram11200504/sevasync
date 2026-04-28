@@ -1,2 +1,24 @@
+# Secrets
 .env
-/node_modules
+*.env
+service-account.json
+
+# Dependencies
+node_modules/
+.pub-cache/
+.dart_tool/
+build/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Other
+backend.zip
+.firebase/
